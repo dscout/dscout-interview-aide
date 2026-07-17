@@ -1,3 +1,8 @@
+import sys
+import pandas as pd
+import numpy as np
+from datetime import datetime
+
 """
 Dscout - Data Engineering Interview Problem
 Round 1: Python Pipeline + SQL
@@ -66,8 +71,45 @@ def process_events(raw_events: list[dict]) -> tuple[list[dict], list[dict]]:
         valid_events: list of clean records ready for Snowflake
         rejected_events: list of records that failed validation, each with a 'rejection_reason' field
     """
-    # YOUR CODE HERE
-    pass
+
+    df = pd.DataFrame(raw_events)
+    new_records = []
+    rejected_events = []
+    seen_ids = set()
+    for i, r in df.iterrows():
+        if r['event_id'] in seen_ids:
+            r['rejection_reason'] = 'duplicate event_id'
+            rejected_events.append(r)
+            continue
+        seen_ids.add(r['event_id'])
+
+        should_continue = False
+        for k, v in r.items():
+            if should_continue:
+                break
+            if v is None or v is np.nan:
+                r['rejection_reason'] = 'null value'
+                rejected_events.append(r)
+                should_continue = True
+        if should_continue:
+            continue
+
+
+        if r['duration_seconds'] < 0:
+            r['rejection_reason'] = 'negative duration_seconds'
+            rejected_events.append(r)
+            continue
+
+        try:
+            datetime.fromisoformat(r['timestamp'])
+        except ValueError:
+            r['rejection_reason'] = 'invalid timestamp'
+            rejected_events.append(r)
+            continue
+
+        new_records.append(r)
+    return new_records, rejected_events
+
 
 
 # ─────────────────────────────────────────────
@@ -117,16 +159,49 @@ con.register("mission_events", valid_events_df)
 # Q1
 q1 = """
 -- YOUR QUERY HERE
+select
+  mission_id,
+  count(*) as total_completions,
+  avg(duration_seconds) as mean_duration_seconds
+from mission_events
+where event_type='mission_complete'
+group by 1
+having count(*) > 2
 """
 
 # Q2
 q2 = """
 -- YOUR QUERY HERE
+select
+  mission_id,
+  participant_id,
+  study_id,
+  duration_seconds,
+  rank() over (partition by participant_id, study_id order by duration_seconds desc) as duration_rank
+from mission_events
+order by 2,3,1
 """
 
 # Q3
 q3 = """
 -- YOUR QUERY HERE
+WITH participant_means AS (
+    SELECT
+        participant_id,
+        AVG(duration_seconds) AS mean_duration_seconds
+    FROM mission_events
+    GROUP BY participant_id
+),
+zscored AS (
+    SELECT
+        *,
+        (mean_duration_seconds - AVG(mean_duration_seconds) OVER ())
+            / STDDEV_SAMP(mean_duration_seconds) OVER () AS zscore
+    FROM participant_means
+)
+SELECT *
+FROM zscored
+where abs(zscore) > 2
 """
 
 print("\n── Q1: Study Completion Summary ──")
