@@ -1,4 +1,4 @@
-# Dscout — Data Engineering Interview: Round 1
+# Dscout — AI Data Engineering Interview: Round 1
 
 Welcome! This coding exercise covers a Python data pipeline and SQL. It's meant to reflect the kind of work you'd actually do here: ingesting messy event data, cleaning it, and answering analytical questions against it.
 
@@ -27,7 +27,7 @@ Read the docstring and inline instructions in the file. They spell out the requi
 3. You can run the file at any point to check your progress:
 
    ```bash
-   python3 data_eng_tech_round.py
+   python3 ai_data_eng_tech_round.py
    ```
 
    It will print your valid/rejected event counts and (once you've written them) the results of each SQL query.
